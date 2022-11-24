@@ -15,23 +15,32 @@
              #"=" :=,
              #"[0-9]+" :int})
 
+(defn tokenize-single [rest-of-program]
+  (some
+   (fn [[regex keyword]]
+     (match-token regex rest-of-program keyword))
+   tokens))
+
 (defn tokenize [program-str]
-  (reduce
-   (fn [{token-list :token-list, index :index} _]
-     (cond
-       (= index (count program-str)) {:token-list token-list, :index index}
-       :else (let [rest-of-program (subs program-str index)
-                   result (some (fn [[regex keyword]]
-                                  (match-token regex rest-of-program keyword))
-                                tokens)]
+  (let [{tokens :token-list}
+        (reduce
+         (fn [{token-list :token-list, index :index} _]
+           ;; TODO this cond shouldn't need to be here!
+           (cond
+             (>= index (count program-str)) {:token-list token-list, :index index}
+             :else
+             (let [rest-of-program (subs program-str index)
+                   result (tokenize-single rest-of-program)]
+               (println result token-list)
                (cond
                  (nil? result) {:token-list token-list, :index (+ index 1)}
                  :else {:token-list (conj token-list result),
                         :index (+ (count (:value result)) index)}))))
-   {:token-list [], :index 0} program-str))
+         {:token-list [], :index 0} program-str)]
+    tokens))
 
 (def test-program "
-let a = 10
+let a = 10 let
 ")
 
 (tokenize test-program)
