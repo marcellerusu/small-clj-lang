@@ -5,8 +5,7 @@
 
 
 (->> "
-def add(a, b) = a
+def id(x) = x + x
 "
      lexer/tokenize
-     parser/parse
-     compiler/eval-js)
+     parser/parse)

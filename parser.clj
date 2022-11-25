@@ -2,17 +2,37 @@
 (require '[clojure.core.match :refer [match]])
 
 (defn parse-int [val]
-  {:type :int, :value (parse-long val)})
+  {:type :int
+   :value (parse-long val)})
+
+(defn parse-math-operand [lhs-expr op-type tokens]
+  (let [[rhs-expr rest-tokens] (parse-expr tokens)]
+    [{:type :num-op
+      :lhs lhs-expr
+      :op-type op-type
+      :rhs rhs-expr}
+     rest-tokens]))
+
+(defn parse-secondary-ops [lhs tokens]
+  (let [result
+        (match tokens
+          [{:type :plus} & rest-tokens] (parse-math-operand lhs :plus rest-tokens)
+          [{:type :minus} & rest-tokens] (parse-math-operand lhs :minus rest-tokens)
+          [{:type :star} & rest-tokens] (parse-math-operand lhs :mult rest-tokens)
+          [{:type :div} & rest-tokens] (parse-math-operand lhs :div rest-tokens)
+          :else nil)]
+    (cond
+      (nil? result) [lhs tokens]
+      :else (apply parse-secondary-ops result))))
 
 (defn parse-expr [tokens]
-  (match tokens
-    [{:type :int
-      :value val}
-     & rest-tokens] [(parse-int val), rest-tokens]
-    [{:type :id
-      :value name}
-     & rest-tokens] [{:type :id-lookup, :name name} rest-tokens]
-    :else (assert false (str "parse-expr not implemented for " tokens))))
+  (let [[expr rest-tokens]
+        (match tokens
+          [{:type :int, :value val} & rest-tokens] [(parse-int val), rest-tokens]
+          [{:type :id, :value name} & rest-tokens] [{:type :id-lookup, :name name} rest-tokens]
+          :else (assert false (str "parse-expr not implemented for " tokens)))
+        [expr rest-tokens] (parse-secondary-ops expr rest-tokens)]
+    [expr rest-tokens]))
 
 (defn parse-let [tokens]
   (let [[name body]
@@ -40,31 +60,30 @@
 (defn parse-fn-args-any [tokens]
   (match tokens
     [{:type :open-p} & args-rest] (parse-fn-args-some args-rest [])
-    [{:type :=} & args-rest] [{:type :no-args} args-rest]))
+    [{:type :=} & args-rest] [[] args-rest]))
 
 (defn parse-def [tokens]
-  (let [[name after-def]
+  (let [[name tokens-after-id]
         (match tokens
           [{:type :id, :value name} & after-def] [name after-def]
           :else (assert false (str "invalid def statement")))
-        [args-ast after-args] (parse-fn-args-any after-def)
-        [body-ast rest-tokens] (parse-expr after-args)]
+        [args-ast tokens-after-args] (parse-fn-args-any tokens-after-id)
+        [body-ast rest-tokens] (parse-expr tokens-after-args)]
     [{:type :def
       :args args-ast
       :name name
       :body body-ast}
      rest-tokens]))
 
-(defn parse
-  ([tokens] (parse tokens []))
-  ([tokens ast-list]
-   (cond
-     (empty? tokens) ast-list
-     :else
-     (let [[ast-node rest-tokens]
-           (match tokens
-             [{:type :let} & rest] (parse-let rest)
-             [{:type :def} & rest] (parse-def rest)
-             :else (assert false (str "unknown statement " tokens)))
-           ast-list (conj ast-list ast-node)]
-       (parse rest-tokens ast-list)))))
+(defn parse-statement [tokens]
+  (match tokens
+    [{:type :let} & rest] (parse-let rest)
+    [{:type :def} & rest] (parse-def rest)
+    :else (assert false (str "unknown statement " tokens))))
+
+(defn parse [tokens]
+  (loop [rest-tokens tokens ast-list []]
+    (cond
+      (empty? rest-tokens) ast-list
+      :else (let [[ast-node rest-tokens] (parse-statement rest-tokens)]
+              (recur rest-tokens (conj ast-list ast-node))))))

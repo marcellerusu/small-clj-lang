@@ -1,6 +1,6 @@
 (ns lexer)
 
-(defn match-token [regex program-str keyword]
+(defn match-token [program-str {regex :regex keyword :keyword}]
   (let [match-result (re-matcher regex program-str)
         start? (try (-> match-result .find)
                     (-> match-result .start
@@ -10,36 +10,24 @@
                      .group
                      (#(assoc {:type keyword} :value %))))))
 
-(def tokens {#"let\b" :let,
-             #"=" :=,
-             #"[0-9]+" :int
-             #"def\b" :def
-             #"\(" :open-p
-             #"\)" :close-p
-             #"," :comma
-             #"[a-zA-Z]+" :id})
-
-(defn tokenize-single [rest-of-program]
-  (some
-   (fn [[regex keyword]]
-     (match-token regex rest-of-program keyword))
-   tokens))
+(def tokens [{:regex #"let\b"     :keyword :let}
+             {:regex #"="         :keyword :=}
+             {:regex #"[0-9]+"    :keyword :int}
+             {:regex #"def\b"     :keyword :def}
+             {:regex #"\("        :keyword :open-p}
+             {:regex #"\)"        :keyword :close-p}
+             {:regex #","         :keyword :comma}
+             {:regex #"\+"        :keyword :plus}
+             {:regex #"\-"        :keyword :minus}
+             {:regex #"\*"        :keyword :star}
+             {:regex #"\/"        :keyword :div}
+             {:regex #"[a-zA-Z]+" :keyword :id}])
 
 (defn tokenize [program-str]
-  (let [{tokens :token-list}
-        (reduce
-         (fn [{token-list :token-list, index :index} _]
-           ;; TODO this cond shouldn't need to be here!
-           (cond
-             (>= index (count program-str)) {:token-list token-list, :index index}
-             :else
-             (let [rest-of-program (subs program-str index)
-                   result (tokenize-single rest-of-program)]
-               (cond
-                 (nil? result) {:token-list token-list, :index (+ index 1)}
-                 :else {:token-list (conj token-list result),
-                        :index (+ (count (:value result)) index)}))))
-         {:token-list [], :index 0} program-str)]
-    tokens))
-
-
+  (loop [token-list [], rest-of-program program-str]
+    (let [result (some #(match-token rest-of-program %) tokens)]
+      (cond
+        (empty? rest-of-program) token-list
+        (nil? result) (recur token-list (subs rest-of-program 1))
+        :else (recur (conj token-list result),
+                     (subs rest-of-program (count (:value result))))))))

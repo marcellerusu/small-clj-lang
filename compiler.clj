@@ -28,7 +28,6 @@
     :id-lookup (:name node)
     :def (eval-def node)))
 
-
 (defn eval-js
   ([ast] (eval-js ast ""))
   ([ast output]
@@ -38,7 +37,6 @@
               (empty? output) result-js
               :else (str output ";\n" result-js))
          rest (drop 1 ast)]
-
      (cond
        (or (nil? result-js) (empty? rest)) js
        :else (eval-js rest output)))))
