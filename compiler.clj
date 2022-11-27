@@ -1,16 +1,17 @@
 (ns compiler)
 (require '[clojure.string :as string])
 
-(defn eval-let [node]
+(declare ^:private eval-node)
+
+(defn- eval-let [node]
   (str "let " (:name node) " = " (eval-node (:expr node))))
 
-(defn indented [& strings]
+(defn- indented [& strings]
   (->> strings
        (map #(str "  " %))
        (string/join ";\n")))
 
-(defn eval-def [node]
-  (println (:body node) " | " (eval-node (:body node)))
+(defn- eval-def [node]
   (str
    "function "
    (:name node)
@@ -21,12 +22,21 @@
     (str "return " (eval-node (:body node))))
    "\n}"))
 
-(defn eval-node [node]
+(defn- eval-num-op [node]
+  (let [js-op (case (:op-type node)
+                :plus "+"
+                :minus "-"
+                :star "*"
+                :div "/")]
+    (str (-> node :lhs eval-node) " " js-op " " (-> node :rhs eval-node))))
+
+(defn- eval-node [node]
   (case (:type node)
     :let (eval-let node)
     :int (str (:value node))
     :id-lookup (:name node)
-    :def (eval-def node)))
+    :def (eval-def node)
+    :num-op (eval-num-op node)))
 
 (defn eval-js
   ([ast] (eval-js ast ""))
