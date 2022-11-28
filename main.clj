@@ -4,7 +4,7 @@
   (:require compiler))
 
 (->> "
-let [x] = 1
+let [a, b] = [1, 2]
 "
      lexer/tokenize
      parser/parse

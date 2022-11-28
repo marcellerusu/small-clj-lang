@@ -30,6 +30,11 @@
 (defn- eval-let-arr [{:keys [ids expr]}]
   (str "let [" (string/join ", " ids) "] = " (eval-node expr)))
 
+(defn- eval-arr [{exprs :exprs}]
+  (let [exprs-arr-js (map eval-node exprs)
+        exprs-js (string/join ", " exprs-arr-js)]
+    (str "[" exprs-js  "]")))
+
 (defn- eval-node [node]
   {:pre [(map? node)]}
 
@@ -40,7 +45,8 @@
     :id-lookup (:name node)
     :def (eval-def node)
     :num-op (eval-num-op node)
-    :return (eval-return node)))
+    :return (eval-return node)
+    :arr (eval-arr node)))
 
 (defn eval-js
   ([ast] (eval-js ast ""))
