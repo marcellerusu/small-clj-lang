@@ -83,10 +83,21 @@
     [{:type :=} & after-eq] (parse-single-line-fn-return after-eq)
     :else (parse-def-multiline-body tokens)))
 
+(defn- insert-implicit-returns [def-body]
+  (let [body-without-last (pop def-body)
+        last-elem (last def-body)
+        last-elem (case (:type last-elem)
+                    :return last-elem
+                    {:type :return, :expr last-elem})]
+    (conj body-without-last last-elem)))
+
+(pop [1 2 3])
+
 (defn- parse-def [tokens]
   (let [[name tokens-after-id] (parse-def-name tokens)
         [args-ast tokens-after-args] (parse-fn-args-any tokens-after-id)
-        [body-ast rest-tokens] (parse-def-body tokens-after-args)]
+        [body-ast rest-tokens] (parse-def-body tokens-after-args)
+        body-ast (insert-implicit-returns body-ast)]
     [{:type :def
       :args args-ast
       :name name
@@ -104,7 +115,7 @@
     [{:type :let} & rest] (parse-let rest)
     [{:type :def} & rest] (parse-def rest)
     [{:type :return} & rest] (parse-return rest)
-    :else (assert false (str "unknown statement " tokens))))
+    :else (parse-expr tokens)))
 
 (defn- parse-until [tokens end-token]
   (loop [rest-tokens tokens ast-list []]
