@@ -4,7 +4,10 @@
   (:require compiler))
 
 (->> "
-let [a, b] = [1, 2]
+def add(a b)
+  let [a b] = 10
+  a + b
+end
 "
      lexer/tokenize
      parser/parse

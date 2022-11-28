@@ -7,7 +7,7 @@
 (defn- p-result [ast-node tokens]
   [ast-node tokens])
 
-(defn- p-into [partial-ast-node keyword]
+(defn- p-assoc [partial-ast-node keyword]
   (fn [[ast-result tokens]]
     (p-result (assoc partial-ast-node keyword ast-result) tokens)))
 
@@ -37,7 +37,7 @@
 (defn- parse-math-operand [lhs-expr op-type tokens]
   (p-pipe
    (parse-expr tokens)
-   (p-into {:type :num-op, :lhs lhs-expr, :op-type op-type} :rhs)))
+   (p-assoc {:type :num-op, :lhs lhs-expr, :op-type op-type} :rhs)))
 
 (defn- parse-secondary-ops [lhs tokens]
   (let [result
@@ -112,7 +112,7 @@
 (defn- parse-single-line-fn-return [tokens]
   (p-pipe
    (parse-expr tokens)
-   (p-into {:type :return} :expr)
+   (p-assoc {:type :return} :expr)
    (p-map vector)))
 
 (defn- parse-def-body [tokens]
@@ -120,20 +120,16 @@
     [{:type :=} & after-eq] (parse-single-line-fn-return after-eq)
     :else (parse-def-multiline-body tokens)))
 
-(defn- insert-implicit-returns [def-body]
-  (let [body-without-last (pop def-body)
-        last-elem (last def-body)
-        last-elem (case (:type last-elem)
-                    :return last-elem
-                    {:type :return, :expr last-elem})]
-
-    (conj body-without-last last-elem)))
+(defn- replace-last-expr-with-return [def-body]
+  (cond
+    (-> def-body last :type (= :return)) def-body
+    :else (conj (pop def-body) {:type :return, :expr (last def-body)})))
 
 (defn- parse-def [tokens]
   (let [[name tokens-after-id] (parse-def-name tokens)
         [args-ast tokens-after-args] (parse-fn-args tokens-after-id)
         [body-ast rest-tokens] (parse-def-body tokens-after-args)
-        body-ast (insert-implicit-returns body-ast)]
+        body-ast (replace-last-expr-with-return body-ast)]
 
     (p-result {:type :def, :args args-ast, :name name, :body body-ast}
               rest-tokens)))
@@ -146,8 +142,7 @@
 
 (defn- parse-arr-deconstruction [tokens]
   (let [[ids rest-tokens] (parse-comma-seperated-ids tokens :close-sq)
-        [expr rest-tokens] (match rest-tokens
-                             [{:type :=} & rest] (parse-expr rest))]
+        [expr rest-tokens] (match rest-tokens [{:type :=} & rest] (parse-expr rest))]
 
     (p-result {:type :let-arr, :ids ids, :expr expr}
               rest-tokens)))
@@ -162,7 +157,7 @@
 
 (defn- parse-until [tokens end-token]
   (loop [rest-tokens tokens ast-list []]
-    (assert (not-empty rest-tokens) "shouldn't have reached the end")
+    (assert (not-empty rest-tokens) (str "Expected to eventually run into " end-token))
     (cond
       (-> rest-tokens first :type (= end-token)) (p-result ast-list rest-tokens)
       :else (let [[ast-node rest-tokens] (parse-statement rest-tokens)]
