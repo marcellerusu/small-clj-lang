@@ -3,9 +3,10 @@
   (:require parser)
   (:require compiler))
 
-
 (-> "
-def id(x) = x + x
+def id(x)
+  return x * x
+end
 "
     lexer/tokenize
     parser/parse

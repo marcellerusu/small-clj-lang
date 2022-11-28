@@ -11,18 +11,20 @@
                      (#(assoc {:type keyword} :value %))))))
 
 (def ^:private tokens
-  [{:regex #"let\b"     :keyword :let}
-   {:regex #"="         :keyword :=}
-   {:regex #"[0-9]+"    :keyword :int}
-   {:regex #"def\b"     :keyword :def}
-   {:regex #"\("        :keyword :open-p}
-   {:regex #"\)"        :keyword :close-p}
-   {:regex #","         :keyword :comma}
-   {:regex #"\+"        :keyword :plus}
-   {:regex #"\-"        :keyword :minus}
-   {:regex #"\*"        :keyword :star}
-   {:regex #"\/"        :keyword :div}
-   {:regex #"[a-zA-Z]+" :keyword :id}])
+  [{:regex #"^let\b"     :keyword :let}
+   {:regex #"^="         :keyword :=}
+   {:regex #"^[0-9]+"    :keyword :int}
+   {:regex #"^def\b"     :keyword :def}
+   {:regex #"^end\b"     :keyword :end}
+   {:regex #"^return\b"  :keyword :return}
+   {:regex #"^\("        :keyword :open-p}
+   {:regex #"^\)"        :keyword :close-p}
+   {:regex #"^,"         :keyword :comma}
+   {:regex #"^\+"        :keyword :plus}
+   {:regex #"^\-"        :keyword :minus}
+   {:regex #"^\*"        :keyword :star}
+   {:regex #"^\/"        :keyword :div}
+   {:regex #"^[a-zA-Z]+" :keyword :id}])
 
 (defn tokenize [program-str]
   (loop [token-list [], rest-of-program program-str]

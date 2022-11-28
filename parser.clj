@@ -2,6 +2,7 @@
 (require '[clojure.core.match :refer [match]])
 
 (declare ^:private parse-expr)
+(declare ^:private parse-until)
 
 (defn- parse-int [val]
   {:type :int
@@ -46,7 +47,7 @@
 (defn- parse-fn-args-some [tokens args]
   (let [[name rest]
         (match tokens
-          [{:type :close-p} {:type :=} & rest] [nil rest]
+          [{:type :close-p} & rest] [nil rest]
           [{:type :id, :value arg-name} {:type :comma} & rest] [arg-name rest]
           [{:type :id, :value arg-name} & rest] [arg-name rest]
           :else (assert false (str "unknown fn-args pattern: " tokens)))]
@@ -59,24 +60,59 @@
     [{:type :open-p} & args-rest] (parse-fn-args-some args-rest [])
     [{:type :=} & args-rest] [[] args-rest]))
 
+(defn- parse-def-name [tokens]
+  (match tokens
+    [{:type :id, :value name} & after-def] [name after-def]
+    :else (assert false (str "invalid def statement"))))
+
+(defn- parse-def-multiline-body [tokens]
+  (let [[body rest] (parse-until tokens :end)
+        rest (match rest
+               [{:type :end} & rest] rest
+              ;; in case we're at the end of the file `& rest` expects it to be a non empty list
+               [{:type :end}] [])]
+    [body rest]))
+
+(defn- parse-single-line-fn-return [tokens]
+  (let [[expr rest-tokens] (parse-expr tokens)
+        body [(assoc {:type :return} :expr expr)]]
+    [body rest-tokens]))
+
+(defn- parse-def-body [tokens]
+  (match tokens
+    [{:type :=} & after-eq] (parse-single-line-fn-return after-eq)
+    :else (parse-def-multiline-body tokens)))
+
 (defn- parse-def [tokens]
-  (let [[name tokens-after-id]
-        (match tokens
-          [{:type :id, :value name} & after-def] [name after-def]
-          :else (assert false (str "invalid def statement")))
+  (let [[name tokens-after-id] (parse-def-name tokens)
         [args-ast tokens-after-args] (parse-fn-args-any tokens-after-id)
-        [body-ast rest-tokens] (parse-expr tokens-after-args)]
+        [body-ast rest-tokens] (parse-def-body tokens-after-args)]
     [{:type :def
       :args args-ast
       :name name
       :body body-ast}
      rest-tokens]))
 
+(defn- parse-return [tokens]
+  (let [[expr rest-tokens] (parse-expr tokens)]
+    [{:type :return
+      :expr expr}
+     rest-tokens]))
+
 (defn- parse-statement [tokens]
   (match tokens
     [{:type :let} & rest] (parse-let rest)
     [{:type :def} & rest] (parse-def rest)
+    [{:type :return} & rest] (parse-return rest)
     :else (assert false (str "unknown statement " tokens))))
+
+(defn- parse-until [tokens end-token]
+  (loop [rest-tokens tokens ast-list []]
+    (assert (not-empty rest-tokens) "shouldn't have reached the end")
+    (cond
+      (-> rest-tokens first :type (= end-token)) [ast-list rest-tokens]
+      :else (let [[ast-node rest-tokens] (parse-statement rest-tokens)]
+              (recur rest-tokens (conj ast-list ast-node))))))
 
 (defn parse [tokens]
   (loop [rest-tokens tokens ast-list []]
