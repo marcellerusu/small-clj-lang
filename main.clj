@@ -4,10 +4,7 @@
   (:require compiler))
 
 (->> "
-def id(x)
-  let y = x
-  x * y
-end
+let [x] = 1
 "
      lexer/tokenize
      parser/parse

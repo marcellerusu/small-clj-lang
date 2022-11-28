@@ -27,11 +27,15 @@
 (defn- eval-return [{expr :expr}]
   (str "return " (eval-node expr)))
 
+(defn- eval-let-arr [{:keys [ids expr]}]
+  (str "let [" (string/join ", " ids) "] = " (eval-node expr)))
+
 (defn- eval-node [node]
   {:pre [(map? node)]}
 
   (case (:type node)
     :let (eval-let node)
+    :let-arr (eval-let-arr node)
     :int (str (:value node))
     :id-lookup (:name node)
     :def (eval-def node)

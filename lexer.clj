@@ -19,6 +19,8 @@
    {:regex #"^return\b"  :keyword :return}
    {:regex #"^\("        :keyword :open-p}
    {:regex #"^\)"        :keyword :close-p}
+   {:regex #"^\["        :keyword :open-sq}
+   {:regex #"^\]"        :keyword :close-sq}
    {:regex #"^,"         :keyword :comma}
    {:regex #"^\+"        :keyword :plus}
    {:regex #"^\-"        :keyword :minus}

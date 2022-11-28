@@ -34,11 +34,10 @@
         [expr rest-tokens] (parse-secondary-ops expr rest-tokens)]
     [expr rest-tokens]))
 
-(defn- parse-let [tokens]
+(defn- parse-let [name tokens]
   (let [[name body]
         (match tokens
-          [{:type :id, :value name}
-           {:type :=} & body] [name body]
+          [{:type :=} & body] [name body]
           :else (assert false (str "invalid let statement" tokens)))
         [expr rest-tokens] (parse-expr body)]
     [{:type :let, :name name, :expr expr}
@@ -91,8 +90,6 @@
                     {:type :return, :expr last-elem})]
     (conj body-without-last last-elem)))
 
-(pop [1 2 3])
-
 (defn- parse-def [tokens]
   (let [[name tokens-after-id] (parse-def-name tokens)
         [args-ast tokens-after-args] (parse-fn-args-any tokens-after-id)
@@ -110,9 +107,29 @@
       :expr expr}
      rest-tokens]))
 
+(defn- parse-arr-deconstruction [tokens]
+  (let [[ids rest-tokens]
+        (loop [rest-tokens tokens, ids []]
+          (let [[name rest]
+                (match rest-tokens
+                  [{:type :id, :value name} {:type :comma} & rest] [name rest]
+                  [{:type :id, :value name} & rest] [name rest]
+                  [{:type :close-sq} & rest] [nil rest])]
+            (cond
+              (nil? name) [ids rest]
+              :else (recur rest (conj ids name)))))
+        [expr rest-tokens] (match rest-tokens
+                             [{:type :=} & rest] (parse-expr rest))]
+    (println "parse-arr-decon")
+    [{:type :let-arr
+      :ids ids
+      :expr expr}
+     rest-tokens]))
+
 (defn- parse-statement [tokens]
   (match tokens
-    [{:type :let} & rest] (parse-let rest)
+    [{:type :let} {:type :id, :value name} & rest] (parse-let name rest)
+    [{:type :let} {:type :open-sq} & tokens-after-open-sq] (parse-arr-deconstruction tokens-after-open-sq)
     [{:type :def} & rest] (parse-def rest)
     [{:type :return} & rest] (parse-return rest)
     :else (parse-expr tokens)))
